@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>检测报告</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; padding: 0; background: #ededed; font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; color: #333; }
+  .wrap { max-width: 480px; margin: 0 auto; min-height: 100vh; background: #f7f7f7; padding-bottom: 100px; }
+  .navbar { position: sticky; top: 0; z-index: 10; height: 56px; background: #06c15e; color: #fff; display: flex; align-items: center; padding: 0 14px; }
+  .navbar .back { width: 30px; font-size: 26px; line-height: 1; }
+  .navbar .title { flex: 1; text-align: center; font-size: 17px; font-weight: 600; margin-right: 30px; }
+  .navbar .caps { display: flex; align-items: center; gap: 10px; }
+  .caps .dots, .caps .circle { width: 32px; height: 32px; border: 1px solid rgba(255,255,255,.55); border-radius: 16px; display: flex; align-items: center; justify-content: center; }
+  .caps .dots::before { content: '•••'; font-size: 13px; letter-spacing: 1px; }
+  .caps .circle::before { content: ''; width: 14px; height: 14px; border: 2px solid #fff; border-radius: 50%; }
+  .gap { height: 12px; background: #ededed; }
+  .info-card { background: #fff; }
+  .row { display: flex; align-items: center; min-height: 56px; padding: 12px 20px; border-bottom: 1px solid #ededed; }
+  .row:last-child { border-bottom: none; }
+  .row .label { width: 86px; flex-shrink: 0; font-weight: 600; font-size: 15px; color: #333; }
+  .row .value { flex: 1; font-size: 14px; color: #9a9a9a; word-break: break-all; }
+  .sample-card { background: #fff; display: flex; gap: 14px; padding: 20px; }
+  .fish { width: 62px; height: 62px; border-radius: 50%; background: #06c15e; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+  .fish svg { width: 42px; height: 42px; fill: #fff; }
+  .sample-info { flex: 1; display: flex; flex-direction: column; gap: 8px; justify-content: center; }
+  .sample-info .line { font-size: 14px; color: #555; line-height: 1.3; word-break: break-all; }
+  .sample-info .line .k { color: #888; }
+  .sample-info .line.result { color: #06c15e; font-weight: 600; }
+  .footer { position: fixed; bottom: 0; left: 0; right: 0; background: #fff; display: flex; gap: 14px; padding: 12px 20px calc(12px + env(safe-area-inset-bottom)); box-shadow: 0 -2px 10px rgba(0,0,0,.05); z-index: 10; }
+  .footer .btn { flex: 1; height: 46px; border-radius: 24px; font-size: 16px; font-weight: 600; display: flex; align-items: center; justify-content: center; cursor: pointer; border: none; background: #fff; }
+  .btn.share { color: #06c15e; border: 1px solid #06c15e; }
+  .btn.download { color: #fff; background: #06c15e; }
+  .toast { position: fixed; left: 50%; top: 50%; transform: translate(-50%,-50%); background: rgba(0,0,0,.75); color: #fff; padding: 12px 22px; border-radius: 8px; font-size: 14px; z-index: 99; display: none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="navbar">
+    <div class="back" onclick="history.length>1?history.back():void(0)">‹</div>
+    <div class="title">检测报告</div>
+    <div class="caps"><div class="dots"></div><div class="circle"></div></div>
+  </div>
+  <div class="gap"></div>
+  <div class="info-card">
+    <div class="row"><div class="label">取样时间</div><div class="value" id="takeTime">—</div></div>
+    <div class="row"><div class="label">检测时间</div><div class="value" id="testTime">—</div></div>
+    <div class="row"><div class="label">检测类别</div><div class="value" id="testType">—</div></div>
+    <div class="row"><div class="label">委托单位</div><div class="value" id="client">—</div></div>
+    <div class="row"><div class="label">委 托 人</div><div class="value" id="clientPhone">—</div></div>
+    <div class="row"><div class="label">检测标准</div><div class="value" id="standard">—</div></div>
+  </div>
+  <div class="gap"></div>
+  <div class="sample-card">
+    <div class="fish">
+      <svg viewBox="0 0 100 100"><path d="M78 50c0 0-14-22-38-22S14 38 14 50s14 22 26 22 38-22 38-22z"/><circle cx="30" cy="46" r="3" fill="#06c15e"/><path d="M78 50l14-12v24z"/></svg>
+    </div>
+    <div class="sample-info">
+      <div class="line"><span class="k">样品编号：</span><span id="sampleNo">—</span></div>
+      <div class="line"><span class="k">样品名称：</span><span id="sampleName">—</span></div>
+      <div class="line"><span class="k">检验项目：</span><span id="testItem">—</span></div>
+      <div class="line result"><span class="k">检验结果：</span><span id="result">—</span></div>
+    </div>
+  </div>
+  <div class="footer">
+    <button class="btn share" id="shareBtn">分享报告</button>
+    <button class="btn download" id="downloadBtn">下载报告</button>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+// 数据协议：URL query 为 ?v=<base64url(10个字段用 ~ 拼接)>，兼容旧 hash 明文 #v=
+// 顺序：取样时间|检测时间|检测类别|委托单位|委托人|检测标准|样品编号|样品名称|检验项目|检验结果
+var KEYS = ['takeTime','testTime','testType','client','clientPhone','standard','sampleNo','sampleName','testItem','result'];
+function b64urlDecode(s) {
+  s = s.replace(/-/g, '+').replace(/_/g, '/');
+  while (s.length % 4) s += '=';
+  var bin = atob(s), bytes = new Uint8Array(bin.length);
+  for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return new TextDecoder('utf-8').decode(bytes);
+}
+function fill() {
+  var arr = null;
+  // 新格式：query 参数 v=base64url（微信可识别为网址）
+  var q = location.search.match(/[?&]v=([^&]*)/);
+  if (q && q[1]) {
+    try { arr = b64urlDecode(q[1]).split('~'); } catch (e) {}
+  }
+  // 兼容旧格式：hash #v=明文
+  if (!arr || arr.length < 10) {
+    var h = location.hash.match(/v=([^&]*)/);
+    try { if (h) arr = decodeURIComponent(h[1]).split('~'); } catch (e) {}
+  }
+  if (!arr || arr.length < 10) { document.title = '检测报告 · 无效链接'; return; }
+  KEYS.forEach(function (k, i) {
+    var e = document.getElementById(k);
+    if (e) e.textContent = arr[i] || '—';
+  });
+}
+function toast(msg) {
+  var t = document.getElementById('toast');
+  t.textContent = msg; t.style.display = 'block';
+  setTimeout(function(){ t.style.display='none'; }, 2000);
+}
+function reportText() {
+  return '检 测 报 告\n' +
+    '取样时间：' + document.getElementById('takeTime').textContent + '\n' +
+    '检测时间：' + document.getElementById('testTime').textContent + '\n' +
+    '检测类别：' + document.getElementById('testType').textContent + '\n' +
+    '委托单位：' + document.getElementById('client').textContent + '\n' +
+    '委 托 人：' + document.getElementById('clientPhone').textContent + '\n' +
+    '检测标准：' + document.getElementById('standard').textContent + '\n' +
+    '样品编号：' + document.getElementById('sampleNo').textContent + '\n' +
+    '样品名称：' + document.getElementById('sampleName').textContent + '\n' +
+    '检验项目：' + document.getElementById('testItem').textContent + '\n' +
+    '检验结果：' + document.getElementById('result').textContent;
+}
+document.getElementById('shareBtn').onclick = function () {
+  if (navigator.share) {
+    navigator.share({ title: '检测报告', text: reportText(), url: location.href }).catch(function(){});
+  } else {
+    if (navigator.clipboard) navigator.clipboard.writeText(location.href).then(function(){ toast('链接已复制，可分享给他人'); });
+    else toast('请复制浏览器地址栏链接分享');
+  }
+};
+document.getElementById('downloadBtn').onclick = function () {
+  var blob = new Blob(['\ufeff' + reportText()], { type: 'text/plain;charset=utf-8' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = '检测报告_' + document.getElementById('sampleNo').textContent + '.txt';
+  a.click();
+  toast('报告已下载');
+};
+fill();
+</script>
+</body>
+</html>
